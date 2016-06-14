@@ -3,12 +3,14 @@ Model that inherits from both Polymorphic and MPTT.
 """
 import django
 from future.utils import with_metaclass
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-from django.utils.six import integer_types
 from mptt.models import MPTTModel, MPTTModelBase, TreeForeignKey
 from polymorphic.base import PolymorphicModelBase
 from polymorphic_tree.managers import PolymorphicMPTTModelManager
+
+from six import integer_types, string_types
 
 try:
     from polymorphic.models import PolymorphicModel  # django-polymorphic 0.8
@@ -64,6 +66,17 @@ class PolymorphicTreeForeignKey(TreeForeignKey):
         if parent.can_have_children:
             return
 
+        can_have_children = parent.can_have_children
+        if can_have_children:
+            child_types = parent.get_child_types()
+            if (len(child_types) == 0 or
+                    model_instance.polymorphic_ctype_id in child_types):
+                return # child is allowed
+            raise ValidationError(
+                self.error_messages['child_not_allowed'].format(parent,
+                    parent._meta.verbose_name,
+                    model_instance._meta.verbose_name))
+
         raise ValidationError(self.error_messages['no_children_allowed'])
 
 
@@ -75,9 +88,57 @@ class PolymorphicMPTTModel(with_metaclass(PolymorphicMPTTModelBase, MPTTModel, P
 
     #: Whether the node type allows to have children.
     can_have_children = True
+    #: Allowed child types for this page.
+    child_types = []
+    # Cache child types using a class variable to ensure that get_child_types
+    # is run once per page class, per django initiation.
+    __child_types = {}
 
     # Django fields
     _default_manager = PolymorphicMPTTModelManager()
+
+    @property
+    def page_key(self):
+        """
+        A unique key for this page to ensure get_child_types is run once per
+        page.
+        """
+        return repr(self)
+
+    def get_child_types(self):
+        """
+        Get the allowed child types and convert them into content type ids.
+        This allows for the lookup of allowed children in the admin tree.
+        """
+        key = self.page_key
+        child_types = self._PolymorphicMPTTModel__child_types
+        if self.can_have_children and child_types.setdefault(key, None) is None:
+            new_children = []
+            iterator = iter(self.child_types)
+            for child in iterator:
+                if isinstance(child, string_types):
+                    child = str(child).lower()
+                    # write self to refer to self
+                    if child == 'self':
+                        ct_id = self.polymorphic_ctype_id
+                    else:
+                        # either the name of a model in this app
+                        # or the full app.model dot string
+                        # just like a foreign key
+                        try:
+                            app_label, model = child.rsplit('.', 1)
+                        except ValueError:
+                            app_label = self._meta.app_label
+                            model = child
+                        ct_id = ContentType.objects.get(app_label=app_label,
+                            model=model).id
+                else:
+                    # pass in a model class
+                    ct_id = ContentType.objects.get_for_model(child).id
+                new_children.append(ct_id)
+            child_types[key] = new_children
+        return child_types[key]
+
 
     class Meta:
         abstract = True
