@@ -206,11 +206,11 @@ class PolymorphicMPTTParentModelAdmin(PolymorphicParentModelAdmin, MPTTModelAdmi
                     u' a {2} does not allow {3} as a child!').format(moved,
                     target, target._meta.verbose_name, moved._meta.verbose_name)
             if error is not None:
-            return HttpResponse(json.dumps({
-                'action': 'reject',
-                'moved_id': moved_id,
-                'error': error
-            }), content_type='application/json', status=409)  # Conflict
+                return HttpResponse(json.dumps({
+                    'action': 'reject',
+                    'moved_id': moved_id,
+                    'error': error
+                }), content_type='application/json', status=409)  # Conflict
         if moved.parent_id != previous_parent_id:
             return HttpResponse(json.dumps({
                 'action': 'reload',

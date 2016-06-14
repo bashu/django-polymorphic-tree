@@ -34,7 +34,7 @@ def find_version(*parts):
 
 
 setup(
-    name='django-polymorphic-tree',
+    name='sigmacms-polymorphic-tree',
     version=find_version('polymorphic_tree', '__init__.py'),
     license='Apache 2.0',
 
@@ -53,8 +53,8 @@ setup(
     author='Diederik van der Boor',
     author_email='opensource@edoburu.nl',
 
-    url='https://github.com/edoburu/django-polymorphic-tree',
-    download_url='https://github.com/edoburu/django-polymorphic-tree/zipball/master',
+    url='https://github.com/sigmacms/sigmacms-polymorphic-tree',
+    download_url='https://github.com/sigmacms/sigmacms-polymorphic-tree/zipball/master',
 
     packages=find_packages(),
     include_package_data=True,
